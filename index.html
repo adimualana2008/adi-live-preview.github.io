@@ -1,117 +1,161 @@
+<!doctype html>
+<html lang="id">
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
+        <title>Full Screen Barcode Scanner</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
 
-<style>
-    /* 1. Base Camera Setup */
-    #reader {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: #000;
-        z-index: 1000;
-    }
+            body,
+            html {
+                height: 100%;
+                overflow: hidden;
+                background-color: #000;
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    Helvetica, Arial, sans-serif;
+            }
 
-    #reader video {
-        width: 100% !important;
-        height: 100% !important;
-        object-fit: cover !important;
-    }
+            /* Container Kamera Full Screen */
+            #reader {
+                width: 100vw;
+                height: 100vh;
+            }
 
-    /* 2. Layer Overlay */
-    .scanner-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 1001;
-        pointer-events: none;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-    }
+            /* Menghilangkan border default library */
+            #reader img {
+                display: none;
+            }
+            #reader video {
+                object-fit: cover !important;
+                width: 100vw !important;
+                height: 100vh !important;
+            }
 
-    /* 3. Kotak Pembidik Diperbesar (320px - 350px biasanya ideal untuk HP) */
-    .scanner-frame {
-        width: 350px; /* Ukuran diperbesar */
-        height: 350px; /* Ukuran diperbesar */
-        border: 5px solid #28a745; /* Garis lebih tebal */
-        border-radius: 25px;
-        box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.6); /* Area luar lebih gelap agar fokus */
-        position: relative;
-    }
+            /* Overlay UI */
+            .scan-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                align-items: center;
+                pointer-events: none; /* Agar klik tetap tembus ke tombol start/stop */
+                z-index: 10;
+            }
 
-    /* Efek Sudut (Corner Brackets) agar lebih keren */
-    .scanner-frame::before, .scanner-frame::after {
-        content: "";
-        position: absolute;
-        width: 40px;
-        height: 40px;
-        border: 6px solid #28a745;
-    }
+            .header {
+                background: rgba(0, 0, 0, 0.5);
+                color: white;
+                width: 100%;
+                padding: 20px;
+                text-align: center;
+            }
 
-    /* Samping kiri atas */
-    .scanner-frame::before { top: -5px; left: -5px; border-right: 0; border-bottom: 0; border-radius: 20px 0 0 0; }
-    /* Samping kanan bawah */
-    .scanner-frame::after { bottom: -5px; right: -5px; border-left: 0; border-top: 0; border-radius: 0 0 20px 0; }
+            /* Garis Pemindai Animasi */
+            .scan-line {
+                width: 80%;
+                height: 2px;
+                background: #00ff00;
+                box-shadow: 0 0 10px #00ff00;
+                position: absolute;
+                top: 50%;
+                animation: move-line 3s infinite linear;
+            }
 
-    /* Laser Line */
-    .laser {
-        position: absolute;
-        width: 90%;
-        left: 5%;
-        height: 3px;
-        background-color: #28a745;
-        box-shadow: 0 0 15px #28a745;
-        top: 0;
-        animation: scanAnim 2.5s infinite ease-in-out;
-    }
+            @keyframes move-line {
+                0% {
+                    top: 30%;
+                }
+                50% {
+                    top: 70%;
+                }
+                100% {
+                    top: 30%;
+                }
+            }
 
-    @keyframes scanAnim {
-        0% { top: 5%; opacity: 0.2; }
-        50% { top: 90%; opacity: 1; }
-        100% { top: 5%; opacity: 0.2; }
-    }
+            .result-box {
+                background: white;
+                padding: 15px;
+                border-top-left-radius: 20px;
+                border-top-right-radius: 20px;
+                width: 100%;
+                pointer-events: auto;
+                text-align: center;
+            }
 
-    .label-text {
-        color: white;
-        margin-top: 30px;
-        font-size: 18px;
-        font-weight: 600;
-        text-shadow: 2px 2px 10px rgba(0,0,0,1);
-    }
-</style>
+            /* Tombol Start/Stop kustom (Opsional) */
+            #reader__dashboard_section_csr button {
+                background: #007bff;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                margin: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="scan-overlay">
+            <div class="header">Arahkan Kamera ke Barcode</div>
+            <div class="scan-line"></div>
+            <div class="result-box">
+                <p id="scanned-result">Menunggu Scan...</p>
+            </div>
+        </div>
 
-<div id="reader"></div>
+        <div id="reader"></div>
 
-<div class="scanner-overlay">
-    <div class="scanner-frame">
-        <div class="laser"></div>
-    </div>
-    <div class="label-text">Pusatkan QR Code di dalam kotak</div>
-</div>
+        <script src="https://unpkg.com/html5-qrcode"></script>
+        <script src="">
+                    function onScanSuccess(decodedText, decodedResult) {
+                // Memberikan getaran pada ponsel (jika didukung)
+                if (navigator.vibrate) navigator.vibrate(100);
 
-<script src="https://unpkg.com/html5-qrcode"></script>
-<script>
-    const html5QrCode = new Html5Qrcode("reader");
-    
-    const qrCodeSuccessCallback = (decodedText) => {
-        // Langsung redirect jika berhasil
-        window.location.href = decodedText;
-    };
+                document.getElementById('scanned-result').innerHTML = `
+                    <strong>Hasil:</strong> ${decodedText}
+                `;
 
-    const config = { 
-        fps: 20, 
-        // qrbox disesuaikan dengan ukuran CSS agar area sensor pas di kotak hijau
-        qrbox: { width: 350, height: 350 } 
-    };
+                console.log(`Code: ${decodedText}`);
+            }
 
-    html5QrCode.start(
-        { facingMode: "environment" }, 
-        config, 
-        qrCodeSuccessCallback
-    ).catch((err) => {
-        alert("Kamera tidak dapat diakses. Pastikan izin kamera diberikan.");
-    });
-</script>
+            // Inisialisasi scanner
+            const html5QrCode = new Html5Qrcode("reader");
+
+            const config = {
+                fps: 20,
+                // QR Box mengambil 70% dari lebar layar
+                qrbox: (viewfinderWidth, viewfinderHeight) => {
+                    let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+                    let qrboxSize = Math.floor(minEdgeSize * 0.7);
+                    return {
+                        width: qrboxSize,
+                        height: qrboxSize / 1.5 // Bentuk persegi panjang untuk barcode
+                    };
+                },
+                aspectRatio: 1.0 // Memaksa rasio agar penuh
+            };
+
+            // Memulai kamera belakang secara otomatis
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                onScanSuccess
+            ).catch(err => {
+                console.error("Gagal memulai kamera: ", err);
+            });
+        </script>
+    </body>
+</html>
