@@ -1,71 +1,197 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="id">
-    <head>
-        <meta charset="UTF-8" />
-        <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-        />
-        <title>Full Screen Scanner</title>
-        <script src="https://unpkg.com/html5-qrcode"></script>
-        <style>
-            body,
-            html {
-                margin: 0;
-                padding: 0;
-                width: 100%;
-                height: 100%;
-                background-color: #000;
-                overflow: hidden;
-            }
-            /* Kontainer scanner memenuhi layar */
-            #reader {
-                width: 100vw;
-                height: 100vh;
-            }
-            /* Menghilangkan border default library agar lebih clean */
-            #reader__dashboard {
-                display: none !important;
-            }
-            #reader video {
-                object-fit: cover; /* Penting: Agar video memenuhi layar */
-            }
-        </style>
-    </head>
-    <body>
-        <div id="reader"></div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Scan QR Code - Browser HP</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f2f5;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+        #qr-reader {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+        }
+        #qr-reader video {
+            width: 100%;
+            height: auto;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 12px;
+            word-break: break-all;
+        }
+        .result-label {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .result-content {
+            font-size: 1rem;
+            margin-top: 8px;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 1rem;
+            margin-top: 15px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .error {
+            color: #dc3545;
+            margin-top: 10px;
+        }
+        footer {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: #888;
+        }
+    </style>
+    <!-- Library Html5Qrcode -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <p>Arahkan kamera ke QR Code</p>
+        
+        <div id="qr-reader"></div>
+        
+        <div class="result" id="result-area" style="display: none;">
+            <div class="result-label">✅ Hasil Scan:</div>
+            <div class="result-content" id="qr-result"></div>
+            <button onclick="resetScan()">Scan Lagi</button>
+        </div>
+        
+        <div id="error-msg" class="error"></div>
+        
+        <footer>Pastikan izin kamera diberikan. Mendukung semua browser modern di HP.</footer>
+    </div>
 
-        <script>
-            function onScanSuccess(decodedText, decodedResult) {
-                // Aksi setelah berhasil scan
-                alert("Hasil Scan: " + decodedText);
+    <script>
+        let html5QrCode = null;
+        let isScanning = false;
 
-                // Jika ingin pindah halaman otomatis:
-                // window.location.href = "/transaksi_detail/" + decodedText;
-            }
+        // Fungsi memulai scan
+        function startScan() {
+            if (isScanning) return;
 
-            const html5QrCode = new Html5Qrcode("reader");
+            // Bersihkan area reader dari sisa-sisa instance sebelumnya
+            const readerDiv = document.getElementById("qr-reader");
+            readerDiv.innerHTML = "";
+
+            html5QrCode = new Html5Qrcode("qr-reader");
             const config = {
-                fps: 15,
-                qrbox: { width: 250, height: 250 }, // Kotak target di tengah
-                aspectRatio: window.innerWidth / window.innerHeight, // Rasio layar HP
+                fps: 10,
+                qrbox: { width: 350, height: 350 },
+                aspectRatio: 1.0
             };
 
-            // Mulai kamera belakang otomatis
-            Html5Qrcode.getCameras()
-                .then((devices) => {
-                    if (devices && devices.length) {
-                        let cameraId = devices[devices.length - 1].id; // Biasanya kamera belakang
-                        html5QrCode.start(
-                            { facingMode: "environment" }, // Paksa kamera belakang
-                            config,
-                            onScanSuccess,
-                        );
-                    }
-                })
-                .catch((err) => {
-                    console.error("Gagal akses kamera: ", err);
+            html5QrCode.start(
+                { facingMode: "environment" },  // kamera belakang
+                config,
+                (decodedText, decodedResult) => {
+                    // Sukses scan
+                    onScanSuccess(decodedText);
+                },
+                (errorMessage) => {
+                    // Abaikan error scanning (tidak ada QR di frame)
+                    // console.log(errorMessage);
+                }
+            ).catch((err) => {
+                console.error("Gagal memulai kamera: ", err);
+                document.getElementById("error-msg").innerHTML = "Tidak dapat mengakses kamera. Pastikan izin kamera diberikan.";
+                isScanning = false;
+            });
+            isScanning = true;
+        }
+
+        // Fungsi ketika scan berhasil
+        function onScanSuccess(decodedText) {
+            if (!isScanning) return;
+
+            // Hentikan scan
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    console.log("Scan berhenti");
+                    isScanning = false;
+                }).catch((err) => {
+                    console.error("Gagal stop scan: ", err);
+                    isScanning = false;
                 });
-        </script>
-    </body>
+            }
+
+            // Tampilkan hasil
+            document.getElementById("qr-result").innerHTML = decodedText;
+            document.getElementById("result-area").style.display = "block";
+            document.getElementById("error-msg").innerHTML = ""; // clear error
+
+            // Opsional: jika hasil adalah URL, buka otomatis
+            if (decodedText.startsWith("http://") || decodedText.startsWith("https://")) {
+                if (confirm("Hasil scan adalah link: " + decodedText + "\n\nBuka di browser?")) {
+                    window.location.href = decodedText;
+                }
+            }
+        }
+
+        // Fungsi untuk scan ulang tanpa reload halaman
+        function resetScan() {
+            // Sembunyikan area hasil
+            document.getElementById("result-area").style.display = "none";
+            document.getElementById("qr-result").innerHTML = "";
+            document.getElementById("error-msg").innerHTML = "";
+
+            // Jika masih ada proses scan yang berjalan (misalnya karena error), hentikan
+            if (html5QrCode && isScanning) {
+                html5QrCode.stop().then(() => {
+                    isScanning = false;
+                    startScan();
+                }).catch((err) => {
+                    console.error("Gagal stop: ", err);
+                    startScan();
+                });
+            } else {
+                startScan();
+            }
+        }
+
+        // Mulai scan ketika halaman selesai dimuat
+        window.onload = () => {
+            startScan();
+        };
+    </script>
+</body>
 </html>
